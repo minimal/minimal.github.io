@@ -124,7 +124,7 @@ pre, code, .hljs {
     background-color: #f7f9fd;
 }
 
-img[alt=drawing] { max-width: 640px; }
+img[alt=drawing] { max-width: 100%; }
 
 @media (min-width: 768px) {
     .navbar {
