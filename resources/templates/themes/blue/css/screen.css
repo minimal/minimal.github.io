@@ -51,11 +51,11 @@ body {
 
 .navbar-default .navbar-nav .active a {
     color: #fff;
-    background-color: #3d80ba;
+    background-color: #3d0000;
 }
 
 .navbar-default .navbar-toggle:hover{
-    background-color: #3d80ba;
+    background-color: #3d0000;
 }
 
 .navbar-default .navbar-toggle .icon-bar {
