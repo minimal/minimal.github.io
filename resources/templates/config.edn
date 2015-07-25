@@ -1,7 +1,7 @@
 {:site-title         "Minimal Code"
  :author             "Chris McDevitt"
  :description        "This blog is awesome"
- :site-url           "http://minimal.github.com/"
+ :site-url           "http://minimal.github.io/"
  :post-root          "posts"
  :tag-root           "tags"
  :page-root          "pages"
