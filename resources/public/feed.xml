@@ -1,0 +1,199 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rss version='2.0' xmlns:atom='http://www.w3.org/2005/Atom'>
+<channel>
+<atom:link href='http://minimal.github.com/' rel='self' type='application/rss+xml'/>
+<generator>
+clj-rss
+</generator>
+<title>
+Minimal Code
+</title>
+<link>
+http://minimal.github.com/
+</link>
+<description>
+This blog is awesome
+</description>
+<lastBuildDate>
+Sat, 25 Jul 2015 15:48:58 +0100
+</lastBuildDate>
+<item>
+<guid>
+http://minimal.github.com/posts/2015-07-25.html
+</guid>
+<link>
+http://minimal.github.com/posts/2015-07-25.html
+</link>
+<title>
+Elm
+</title>
+<description>
+&lt;h3&gt;&lt;a name=&quot;this&amp;#95;post&amp;#95;so&amp;#95;fetch&quot;&gt;&lt;/a&gt;This Post So Fetch&lt;/h3&gt;&lt;p&gt;some more stuff happened&lt;/p&gt;&lt;pre&gt;&lt;code&gt;&amp;#40;defn foo &amp;#91;bar&amp;#93;
+  &amp;#40;bar&amp;#41;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;and some elm:&lt;/p&gt;&lt;pre&gt;&lt;code&gt;prod l =
+  case l of
+    &amp;#91;&amp;#93; -&amp;gt; 1
+    h::t -&amp;gt; h &amp;#42; &amp;#40;prod t&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;pre&gt;&lt;code&gt;def moo&amp;#40;x&amp;#41;:
+    return &amp;#91;y for y in x&amp;#93;
+&lt;/code&gt;&lt;/pre&gt;
+</description>
+<pubDate>
+Sat, 25 Jul 2015 00:00:00 +0100
+</pubDate>
+</item>
+<item>
+<guid>
+http://minimal.github.com/posts/2015-01-26.html
+</guid>
+<link>
+http://minimal.github.com/posts/2015-01-26.html
+</link>
+<title>
+Event Monitoring
+</title>
+<description>
+&lt;p&gt;At Skimlinks up until about 20 months ago our service monitoring consisted mostly of Icinga/Nagios checks that only ran about every 5 minutes. The Icinga dashboard was displayed on our monitor wall. While readying the release of a new version of SkimWords we thought we needed some monitoring closer to real-time. Since the API was CPU bound and latency sensitive we needed more insight into the state of system, especially during new releases and traffic spikes.&lt;/p&gt;&lt;p&gt;As Clojure fans, we had recently come across &lt;a href='http://riemann.io/'&gt;Riemann&lt;/a&gt;, and it seemed perfect for monitoring the latencies of our APIs. Send events to it and Riemann can aggregate them using a Clojure based stream processing language. These can then be displayed in near real time in Riemann Dash, and forwared to other applications for alerting, visualising or persistence.&lt;/p&gt;&lt;p&gt;At the end of every request to the API an event is sent to Riemann with the latency in milliseconds of the request. This is all that is required on the client side, then Riemann can do the heavy lifting of computing aggregations of the data over time. Initially the real time requests were fun to look on the dashboard but that uses a lot of bandwidth and isn't very helpful when requests per second is high. With a few lines of Clojure we can display a grid of 50, 95 and 99 percentile latencies across a 5 second window for each host and requests per second per host and in total:&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/GrO5cxo.png&quot; alt=&quot;drawing&quot; /&gt;&lt;/p&gt;&lt;p&gt;Here you can see big differences between the 50%iles, 95%iles and 99%iles, a high variability in response time. We decided what latencies were acceptable for each percentile and changed the thresholds so that the grid would turn orange then red for slow requests.&lt;/p&gt;&lt;p&gt;The first big win we had had with Riemann happened when a new release was made to an upstream service than inadvertently used the incorrect Memcache keys before calling Skimwords, resulting in 100 percent cache misses. We noticed the 99 percentiles all turning red, then the 95 and eventually the 50 percentiles. Within seconds of releasing we could see there was a problem and were able to rectify it quickly.&lt;/p&gt;&lt;p&gt;As the benefits of Riemann became more clear, other projects started requesting access and a place on the dashboard wall. Now 6 out of 15 screens are showing riemann-dash (highlighted in red):&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/O4320gW.jpg&quot; alt=&quot;drawing&quot; /&gt;&lt;/p&gt;&lt;p&gt;Here are some tips on some aspects of Riemann based on our experience:&lt;/p&gt;&lt;h2&gt;&lt;a name=&quot;tcp&amp;#95;vs&amp;#95;udp&quot;&gt;&lt;/a&gt;TCP vs UDP&lt;/h2&gt;&lt;p&gt;Short answer: use TCP unless you really know what you are doing.&lt;/p&gt;&lt;p&gt;When sending metrics you have a choice between using TCP or fire-and-forget UDP packets (there is also HTTP and Graphite). At the start we used UDP which had some problems later. UDP is easy to add to your app as you can send your metrics in the same thread that is handling the request without having to worry about delays or failures affecting the user. The flip-side is you never know about any failures and since there is no back pressure it is possible to overload the metrics server. Actually, under heavy network load, we have seen EC2 instances drop a percentage of UDP packets before they make it to Riemann. Using an instance type with better network IO capacity increases the threshold at which this happens. This is understandable as UDP packets offer no guarantee of delivery and can be dropped by the network or your OS. If you have integrated metrics (e.g. you calculate the request rate from individual request metrics) then they will skew as packets are dropped. Metrics like disk space or queue sizes can handle some packet loss.&lt;/p&gt;&lt;p&gt;The &lt;a href='http://riemann.io/howto.html#what-protocol-should-i-use-to-talk-to-riemann'&gt;How To&lt;/a&gt; has more info.&lt;/p&gt;&lt;p&gt;In a future post we will look at safely sending metrics with TCP in Python and Clojure.&lt;/p&gt;&lt;h2&gt;&lt;a name=&quot;which&amp;#95;percentiles&amp;#95;are&amp;#95;important&quot;&gt;&lt;/a&gt;Which percentiles are important&lt;/h2&gt;&lt;p&gt;When measuring latencies it can be tempting to use average latency as an indication of the health of your app. This is generally misleading and does not tell you much about tail latencies which are important to control in distributed systems. The 50th percentiles can flatter your app's performance while variable 99th and 99.9th percentile latencies can be amplified when other services depend on them. With web pages these days usually having 50-100+ resources these &quot;worst case&quot; latencies are seen more often than one would imagine, so controlling 99%ile and 99.9%ile response times is important.&lt;/p&gt;&lt;p&gt;For more insight:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;a href='http://latencytipoftheday.blogspot.co.uk/2014/06/latencytipoftheday-most-page-loads.html'&gt;Most page loads will experience the 99%'ile server response&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='https://www.youtube.com/watch?v=C&amp;#95;PxVdQmfpk'&gt;The Tail at Scale: Achieving Rapid Response Times in Large Online Services (video)&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='http://blog.acolyer.org/2015/01/15/the-tail-at-scale/'&gt;&quot;The Tail at Scale&quot; paper featured on &quot;the morning paper&quot; blog&lt;/a&gt;&lt;/li&gt;&lt;/ul&gt;&lt;h2&gt;&lt;a name=&quot;persisting&amp;#95;events&quot;&gt;&lt;/a&gt;Persisting Events&lt;/h2&gt;&lt;p&gt;If you want to save some of the data in Riemann you have a number of options. There are several adapters included that can forward events to other services, including email, Pagerduty, Librato, Graphite and InfluxDB. Email and Pagerduty are good for alerts while the latter three are good for data persistence and analysis. We decided to trial InfluxDB (a time series database) for storing metrics over time. It allows querying of time series data with an SQL-like language with extra aggregation functions similar to those found in Riemann's fold and streams namespaces.&lt;/p&gt;&lt;p&gt;Passing data to influx is as simple as passing your influx function as a child of an event stream function. Here we forward the latency to InfluxDB, then we also calculate the event rate and forward it to Riemann's index and to InfluxDB, giving the service a name reflecting the metric.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clj&quot;&gt;&amp;#40;where &amp;#40;service &amp;quot;api-latency&amp;quot;&amp;#41;
+  influx
+  &amp;#40;with {:metric 1 :state &amp;quot;ok&amp;quot; :service &amp;quot;api.events/sec&amp;quot;}
+    &amp;#40;rate 5 index influx&amp;#41;&amp;#41;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Here is an example query that gives the 99%ile latency over the last 3 days, grouped into 10 minute bins:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;sql&quot;&gt;select percentile&amp;#40;value, 99&amp;#41; from /.&amp;#42;/
+where name = 'api-latency'
+and time &amp;gt; now&amp;#40;&amp;#41; - 72h
+group by time&amp;#40;10m&amp;#41;;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;To visualize this history we use Grafana, which can query InfluxDB directly and display nice charts on a web page.&lt;/p&gt;&lt;p&gt;Here is a chart showing how our autoscaling works. It shows the total requests per second to the api with the number of hosts serving the api. The number of hosts trends with the number of requests.&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/xzZL3Vo.png&quot; alt=&quot;drawing&quot; /&gt;&lt;/p&gt;&lt;p&gt;The queries in Grafana look like:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;sql&quot;&gt;select mean&amp;#40;&amp;quot;value&amp;quot;&amp;#41; as &amp;quot;value&amp;#95;mean&amp;quot; from &amp;quot;api distinct hosts&amp;quot;
+where time &amp;gt; now&amp;#40;&amp;#41; - 4d
+group by time&amp;#40;5m&amp;#41;
+order asc;
+
+select  mean&amp;#40;&amp;quot;value&amp;quot;&amp;#41; as &amp;quot;value&amp;#95;mean&amp;quot; from &amp;quot;total api request rate&amp;quot;
+where  time &amp;gt; now&amp;#40;&amp;#41; - 4d
+group by time&amp;#40;5m&amp;#41;
+order asc;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We find this to be an excellent setup that has quickly become indispensable.&lt;/p&gt;&lt;p&gt;Resources:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;a href=&quot;http://riemann.io/howto.html&quot;&gt;http://riemann.io/howto.html&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href=&quot;http://grafana.org/&quot;&gt;http://grafana.org/&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href=&quot;http://influxdb.com/&quot;&gt;http://influxdb.com/&lt;/a&gt;&lt;/li&gt;&lt;/ul&gt;
+</description>
+<pubDate>
+Mon, 26 Jan 2015 00:00:00 +0000
+</pubDate>
+</item>
+<item>
+<guid>
+http://minimal.github.com/posts/2014-12-11-docs.html
+</guid>
+<link>
+http://minimal.github.com/posts/2014-12-11-docs.html
+</link>
+<title>
+Using Cryogen
+</title>
+<description>
+&lt;p&gt;For additional documentation please see the &lt;a href='http://cryogenweb.org'&gt;cryogen site&lt;/a&gt;&lt;/p&gt;&lt;h2&gt;&lt;a name=&quot;features&quot;&gt;&lt;/a&gt;Features&lt;/h2&gt;&lt;ul&gt;&lt;li&gt;blog posts and pages with Markdown (default) or AsciiDoc&lt;/li&gt;&lt;li&gt;tags&lt;/li&gt;&lt;li&gt;table of contents generation&lt;/li&gt;&lt;li&gt;Default Twitter Bootstrap theme&lt;/li&gt;&lt;li&gt;plain HTML page templates&lt;/li&gt;&lt;li&gt;code syntax highlighting&lt;/li&gt;&lt;li&gt;Disqus support&lt;/li&gt;&lt;li&gt;GitHub Gist integration&lt;/li&gt;&lt;li&gt;sitemap&lt;/li&gt;&lt;li&gt;Sass/SCSS compilation&lt;/li&gt;&lt;li&gt;RSS&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;&lt;!--more--&gt;&lt;/p&gt;&lt;h2&gt;&lt;a name=&quot;prerequisites&quot;&gt;&lt;/a&gt;Prerequisites&lt;/h2&gt;&lt;p&gt;You will need &lt;a href='https://github.com/technomancy/leiningen'&gt;Leiningen&lt;/a&gt; 2.5.0 or above installed.&lt;/p&gt;&lt;h2&gt;&lt;a name=&quot;usage&quot;&gt;&lt;/a&gt;Usage&lt;/h2&gt;&lt;h3&gt;&lt;a name=&quot;creating&amp;#95;a&amp;#95;new&amp;#95;site&quot;&gt;&lt;/a&gt;Creating a New Site&lt;/h3&gt;&lt;p&gt;A new site can be created using the Cryogen template as follows:&lt;/p&gt;&lt;pre&gt;&lt;code&gt;lein new cryogen my-blog
+&lt;/code&gt;&lt;/pre&gt;&lt;h3&gt;&lt;a name=&quot;running&amp;#95;the&amp;#95;server&quot;&gt;&lt;/a&gt;Running the Server&lt;/h3&gt;&lt;p&gt;The web server can be started from the &lt;code&gt;my-blog&lt;/code&gt; directory using the &lt;code&gt;lein-ring&lt;/code&gt; plugin:&lt;/p&gt;&lt;pre&gt;&lt;code&gt;lein ring server
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The server will watch for changes in the &lt;code&gt;resources/templates&lt;/code&gt; folder and recompile the content automatically.&lt;/p&gt;&lt;h3&gt;&lt;a name=&quot;site&amp;#95;configuration&quot;&gt;&lt;/a&gt;Site Configuration&lt;/h3&gt;&lt;p&gt;The site configuration file is found at &lt;code&gt;templates/config.edn&lt;/code&gt;, this file looks as follows:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;{:site-title       &amp;quot;My Awesome Blog&amp;quot;
+ :author           &amp;quot;Bob Bobbert&amp;quot;
+ :description      &amp;quot;This blog is awesome&amp;quot;
+ :site-url         &amp;quot;http://blogawesome.com/&amp;quot;
+ :post-root        &amp;quot;posts&amp;quot;
+ :tag-root         &amp;quot;tags&amp;quot;
+ :page-root        &amp;quot;pages&amp;quot;
+ :blog-prefix      &amp;quot;/blog&amp;quot;
+ :rss-name         &amp;quot;feed.xml&amp;quot;
+ :rss-filters      &amp;#91;&amp;quot;cryogen&amp;quot;&amp;#93;
+ :recent-posts     3
+ :post-date-format &amp;quot;yyyy-MM-dd&amp;quot;
+ :sass-src         nil
+ :sass-dest        nil
+ :resources        &amp;#91;&amp;quot;css&amp;quot; &amp;quot;js&amp;quot; &amp;quot;404.html&amp;quot;&amp;#93;
+ :keep-files       &amp;#91;&amp;quot;.git&amp;quot;&amp;#93;
+ :disqus?          false
+ :disqus-shortname &amp;quot;&amp;quot;
+ :ignored-files    &amp;#91;#&amp;quot;\.#.&amp;#42;&amp;quot; #&amp;quot;.&amp;#42;\.swp$&amp;quot;&amp;#93;}
+&lt;/code&gt;&lt;/pre&gt;&lt;ul&gt;&lt;li&gt;&lt;code&gt;post-root&lt;/code&gt; - value prepended to all post uri's&lt;/li&gt;&lt;li&gt;&lt;code&gt;tag-root&lt;/code&gt; - value prepended to all tag uri's&lt;/li&gt;&lt;li&gt;&lt;code&gt;page-root&lt;/code&gt; - value prepended to all page uri's&lt;/li&gt;&lt;li&gt;&lt;code&gt;blog-prefix&lt;/code&gt; - prepended to all uri's (must start with slash), nil by default&lt;/li&gt;&lt;li&gt;&lt;code&gt;rss-name&lt;/code&gt; - name of the rss file generated, nil defaults to &lt;code&gt;rss.xml&lt;/code&gt;&lt;/li&gt;&lt;li&gt;&lt;code&gt;rss-filters&lt;/code&gt; - used to generate tag-based rss feeds for topic-specific rss aggregators. Tags listed here should match tags being used in your posts.&lt;/li&gt;&lt;li&gt;&lt;code&gt;recent-posts&lt;/code&gt; - number of recent posts to display in the sidebar&lt;/li&gt;&lt;li&gt;&lt;code&gt;post-date-format&lt;/code&gt; - date format for your .md or .asc files, yyyy-MM-dd by default&lt;/li&gt;&lt;li&gt;&lt;code&gt;sass-src&lt;/code&gt; - directory containing sources of sass files to be  compiled - defaults to &quot;css&quot; - be sure to include this directory in  your &lt;code&gt;resources&lt;/code&gt; section&lt;/li&gt;&lt;li&gt;&lt;code&gt;sass-dest&lt;/code&gt; - directory where the compiled output CSS would be put    into. defaults to &quot;css&quot; - be sure to include this directory in    your &lt;code&gt;resources&lt;/code&gt; section&lt;/li&gt;&lt;li&gt;&lt;code&gt;resources&lt;/code&gt; - list of folders or files to be copied over from &lt;code&gt;templates&lt;/code&gt; to &lt;code&gt;public&lt;/code&gt;&lt;/li&gt;&lt;li&gt;&lt;code&gt;keep-files&lt;/code&gt; - list of folders or files that are not wiped in the &lt;code&gt;public&lt;/code&gt; directory. For example, this allows to keep a &lt;code&gt;.git&lt;/code&gt; directory there across recompiles of the site to versionize the generated files&lt;/li&gt;&lt;li&gt;&lt;code&gt;disqus?&lt;/code&gt; - set to true if you want disqus enabled on your site&lt;/li&gt;&lt;li&gt;&lt;code&gt;disqus-shortname&lt;/code&gt; - your disqus shortname&lt;/li&gt;&lt;li&gt;&lt;code&gt;ignored-files&lt;/code&gt; - list of regexps matching files the compiler should ignore&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;&lt;a name=&quot;switching&amp;#95;between&amp;#95;markdown&amp;#95;and&amp;#95;asciidoc&quot;&gt;&lt;/a&gt;Switching between Markdown and AsciiDoc&lt;/h3&gt;&lt;p&gt;Cryogen comes with Markdown support as default. If you want to use AsciiDoc instead, open the &lt;code&gt;project.clj&lt;/code&gt; in your created blog (e.g. &lt;code&gt;my-blog&lt;/code&gt;), and change the line in &lt;code&gt;:dependencies&lt;/code&gt; that says &lt;code&gt;cryogen-markdown&lt;/code&gt; to &lt;code&gt;cryogen-asciidoc&lt;/code&gt;. Instead of looking for files ending in &lt;code&gt;.md&lt;/code&gt; in the &lt;code&gt;md&lt;/code&gt; directory, the compiler will now look for files ending in &lt;code&gt;.asc&lt;/code&gt; in the &lt;code&gt;asc&lt;/code&gt; directory.&lt;/p&gt;&lt;h3&gt;&lt;a name=&quot;creating&amp;#95;posts&quot;&gt;&lt;/a&gt;Creating Posts&lt;/h3&gt;&lt;p&gt;The posts are located in the &lt;code&gt;resources/templates/md/posts&lt;/code&gt; for Markdown files or &lt;code&gt;resources/templates/asc/posts&lt;/code&gt; for AsciiDoc files. Posts are written using Markdown or AsciiDoc and each post file should start with the date in the format of &lt;code&gt;yyyy-dd-MM&lt;/code&gt; or what is defined in the &lt;code&gt;:post-date-format&lt;/code&gt; key of &lt;code&gt;config.edn&lt;/code&gt;. The files have to have the extension &lt;code&gt;.md&lt;/code&gt; or &lt;code&gt;.asc&lt;/code&gt; respectively. The compiler will link the posts in order for you using the dates. A valid post file written in Markdown might look as follows:&lt;/p&gt;&lt;pre&gt;&lt;code&gt;2014-19-12-post1.md
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The post content must start with a map containing the post metadata:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;{:title &amp;quot;First Post!&amp;quot;
+ :layout :post
+ :tags  &amp;#91;&amp;quot;tag1&amp;quot; &amp;quot;tag3&amp;quot;&amp;#93;}
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The metadata contains the following keys:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;code&gt;:title&lt;/code&gt; - the title of the post&lt;/li&gt;&lt;li&gt;&lt;code&gt;:author&lt;/code&gt; - optional key to display the name of the author for the post&lt;/li&gt;&lt;li&gt;&lt;code&gt;:layout&lt;/code&gt; - the layout template to use for the post&lt;/li&gt;&lt;li&gt;&lt;code&gt;:tags&lt;/code&gt; - the tags associated with this post&lt;/li&gt;&lt;li&gt;&lt;code&gt;:toc&lt;/code&gt; - boolean indicating whether table of contents should be generated, defaults to false&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;The rest of the post should consist of valid Markdown content, eg:&lt;/p&gt;&lt;pre&gt;&lt;code&gt;## Hello World
+
+This is my first post!
+
+check out this sweet code
+
+    &amp;#40;defn foo &amp;#91;bar&amp;#93;
+      &amp;#40;bar&amp;#41;&amp;#41;
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Nunc sodales pharetra massa, eget fringilla ex ornare et.
+Nunc mattis diam ac urna finibus sodales. Etiam sed ipsum
+et purus commodo bibendum. Cras libero magna, fringilla
+tristique quam sagittis, volutpat auctor mi. Aliquam luctus,
+nulla et vestibulum finibus, nibh justo semper tortor, nec
+vestibulum tortor est nec nisi.
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;If you wish to enable comments on your posts, create a &lt;a href='https://disqus.com/'&gt;disqus&lt;/a&gt; account and &lt;a href='https://disqus.com/admin/create/'&gt;register&lt;/a&gt; your blog. &lt;code&gt;disqus?&lt;/code&gt; should be set to &lt;code&gt;true&lt;/code&gt; in the config and you must add your &lt;code&gt;disqus-shortname&lt;/code&gt;.&lt;/p&gt;&lt;h3&gt;&lt;a name=&quot;creating&amp;#95;pages&quot;&gt;&lt;/a&gt;Creating Pages&lt;/h3&gt;&lt;p&gt;Pages work similarly to posts, but aren't grouped by date. An example page might be an about page.&lt;/p&gt;&lt;p&gt;The pages contain the following metadata:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;code&gt;:title&lt;/code&gt; - the title of the page&lt;/li&gt;&lt;li&gt;&lt;code&gt;:layout&lt;/code&gt; - the layout template for the page&lt;/li&gt;&lt;li&gt;&lt;code&gt;:page-index&lt;/code&gt; - a number representing the order of the page in the navbar/sidebar&lt;/li&gt;&lt;li&gt;&lt;code&gt;:navbar?&lt;/code&gt; - determines whether the page should be shown in the navbar, &lt;code&gt;false&lt;/code&gt; by default&lt;/li&gt;&lt;li&gt;&lt;code&gt;:toc&lt;/code&gt; - boolean indicating whether table of contents should be generated, defaults to false&lt;/li&gt;&lt;/ul&gt;&lt;h3&gt;&lt;a name=&quot;customizing&amp;#95;layouts&quot;&gt;&lt;/a&gt;Customizing Layouts&lt;/h3&gt;&lt;p&gt;Cryogen uses &lt;a href='https://github.com/yogthos/Selmer'&gt;Selmer&lt;/a&gt; templating engine for layouts. Please refer to its documentation to see the supported tags and filters for the layouts.&lt;/p&gt;&lt;p&gt;The layouts are contained in the &lt;code&gt;resources/templates/html/layouts&lt;/code&gt; folder of the project. By default, the &lt;code&gt;base.html&lt;/code&gt; layout is used to provide the general layout for the site. This is where you would add static resources such as CSS and Js assets as well as define headers and footers for your site.&lt;/p&gt;&lt;p&gt;Each page layout should have a name that matches the &lt;code&gt;:layout&lt;/code&gt; key in the page metadata and end with &lt;code&gt;.html&lt;/code&gt;. Page layouts extend the base layout and should only contain the content relaveant to the page inside the &lt;code&gt;content&lt;/code&gt; block. For example, the &lt;code&gt;tag&lt;/code&gt; layout is located in &lt;code&gt;tag.html&lt;/code&gt; and looks as follows:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;xml&quot;&gt;{% extends &amp;quot;templates/html/layouts/base.html&amp;quot; %}
+{% block content %}
+&amp;lt;div id=&amp;quot;posts-by-tag&amp;quot;&amp;gt;
+    &amp;lt;h2&amp;gt;Posts tagged {{name}}&amp;lt;/h2&amp;gt;
+    &amp;lt;ul&amp;gt;
+    {% for post in posts %}
+        &amp;lt;li&amp;gt;
+            &amp;lt;a href=&amp;quot;{{post.uri}}&amp;quot;&amp;gt;{{post.title}}&amp;lt;/a&amp;gt;
+        &amp;lt;/li&amp;gt;
+    {% endfor %}
+    &amp;lt;/ul&amp;gt;
+&amp;lt;/div&amp;gt;
+{% endblock %}
+&lt;/code&gt;&lt;/pre&gt;&lt;h3&gt;&lt;a name=&quot;code&amp;#95;syntax&amp;#95;highlighting&quot;&gt;&lt;/a&gt;Code Syntax Highlighting&lt;/h3&gt;&lt;p&gt;Cryogen uses &lt;a href='https://highlightjs.org/'&gt;Highlight.js&lt;/a&gt; for code syntax highlighting. You can add more languages by replacing &lt;code&gt;templates/js/highlight.pack.js&lt;/code&gt; with a customized package from &lt;a href='https://highlightjs.org/download/'&gt;here&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;The &lt;code&gt; initHighlightingOnLoad&lt;/code&gt; function is called in &lt;code&gt;templates/html/layouts/base.html&lt;/code&gt;.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;xml&quot;&gt;&amp;lt;script&amp;gt;hljs.initHighlightingOnLoad&amp;#40;&amp;#41;;&amp;lt;/script&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;h2&gt;&lt;a name=&quot;deploying&amp;#95;your&amp;#95;site&quot;&gt;&lt;/a&gt;Deploying Your Site&lt;/h2&gt;&lt;p&gt;The generated static content will be found under the &lt;code&gt;resources/public&lt;/code&gt; folder. Simply copy the content to a static folder for a server sugh as Nginx or Apache and your site is now ready for service.&lt;/p&gt;&lt;p&gt;A sample Nginx configuration that's placed in &lt;code&gt;/etc/nginx/sites-available/default&lt;/code&gt; can be seen below:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;javascript&quot;&gt;server{
+  listen 80 default&amp;#95;server;
+  listen &amp;#91;::&amp;#93;:80 default&amp;#95;server ipv6only=on;
+  server&amp;#95;name localhost &amp;lt;yoursite.com&amp;gt; &amp;lt;www.yoursite.com&amp;gt;;
+
+  access&amp;#95;log /var/log/blog&amp;#95;access.log;
+  error&amp;#95;log /var/log/blog&amp;#95;error.log;
+
+  location / {
+    alias /var/blog/;
+    error&amp;#95;page    404 = /404.html;
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Simply set &lt;code&gt;yoursite.com&lt;/code&gt; to the domain of your site in the above configuration and ensure the static content is available at &lt;code&gt;/var/blog/&lt;/code&gt;. Finally, place your custom error page in the &lt;code&gt;/var/blog/404.html&lt;/code&gt; file.&lt;/p&gt;&lt;h2&gt;&lt;a name=&quot;some&amp;#95;sites&amp;#95;made&amp;#95;with&amp;#95;cryogen&quot;&gt;&lt;/a&gt;Some Sites Made With Cryogen&lt;/h2&gt;&lt;ul&gt;&lt;li&gt;&lt;a href='http://carmenla.me/blog/index.html'&gt;My personal blog&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='http://cryogenweb.org'&gt;Cryogen Documentation Site&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='http://yogthos.net/'&gt;Yogthos blog&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='http://www.clojure.tn'&gt;Clojure :in Tunisia&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='http://dl1ely.github.io'&gt;dl1ely.github.io&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='http://jonase.github.io/nil-recur'&gt;nil/recur&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='http://tangrammer.github.io/'&gt;on the clojure move&lt;/a&gt;&lt;/li&gt;&lt;li&gt;&lt;a href='http://blog.jethrokuan.com/'&gt;cognizance&lt;/a&gt;&lt;/li&gt;&lt;/ul&gt;
+</description>
+<pubDate>
+Thu, 11 Dec 2014 00:00:00 +0000
+</pubDate>
+</item>
+<item>
+<guid>
+http://minimal.github.com/posts/2014-11-04-second-post.html
+</guid>
+<link>
+http://minimal.github.com/posts/2014-11-04-second-post.html
+</link>
+<title>
+Yet Another Post
+</title>
+<description>
+&lt;h3&gt;&lt;a name=&quot;this&amp;#95;post&amp;#95;so&amp;#95;fetch&quot;&gt;&lt;/a&gt;This Post So Fetch&lt;/h3&gt;&lt;p&gt;some more stuff happened&lt;/p&gt;
+</description>
+<pubDate>
+Tue, 04 Nov 2014 00:00:00 +0000
+</pubDate>
+</item>
+<item>
+<guid>
+http://minimal.github.com/posts/2014-03-10-first-post.html
+</guid>
+<link>
+http://minimal.github.com/posts/2014-03-10-first-post.html
+</link>
+<title>
+A Post
+</title>
+<description>
+&lt;h3&gt;&lt;a name=&quot;this&amp;#95;post&amp;#95;not&amp;#95;fetch&amp;#95;enough&quot;&gt;&lt;/a&gt;This Post Not Fetch Enough&lt;/h3&gt;&lt;p&gt;some stuff happened&lt;/p&gt;
+</description>
+<pubDate>
+Mon, 10 Mar 2014 00:00:00 +0000
+</pubDate>
+</item>
+</channel>
+</rss>
