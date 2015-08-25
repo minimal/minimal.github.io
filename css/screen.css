@@ -8,7 +8,7 @@ body {
     /* font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; */
     font-family:  Sentinel, 'Cardo',  Georgia, serif;/** , Sentinel, Georgia, serif ; **/
     font-size: 21px;
-    text-align: justify;
+    text-align: left;
 }
 
 .container {
